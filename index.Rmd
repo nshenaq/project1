@@ -19,72 +19,190 @@ tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
 
 ## Data Wrangling, Exploration, Visualization
 
-### Name and EID here
+### Noor Shenaq, ns32468 
 
 #### Introduction 
 
-Paragraph or two introducing your datasets and variables, why they are interesting to you, etc.
+The data sets come from the US Census Bureau and Kaggle data bases. There are 4 data sets "jee16t08", "X2020_November_General_Election_Turnout_Rates", "State_Populations", and "us_regions". The data sets were easily obtained from the sites GitHub Repository. These data sets are in particular interest to me since I was part of Student Government. Voter turnout is particulary something of interest to me because I believe citizens have an obligation to be part of the elections and cast their votes. It is interesting to me to see comparisons amongst different states and geographical regions as well as the population numbers. 
+
+The library that will be used for the majority of the project was downloaded. Then, the data sets that are going to be used were loaded.  
 
 ```{R}
-# read your datasets in here, e.g., with read_csv()
+
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(gt)
+
+jeee16t08 <- read_csv("jeee16t08.csv") 
+#View(jeee16t08)
+
+
+X2020_November_General_Election_Turnout_Rates <- read_csv("2020 November General Election - Turnout Rates.csv")
+
+#View(X2020_November_General_Election_Turnout_Rates)
+
+
+State_Populations <- read_csv("State Populations.csv")
+#View(State_Populations)
+
+
+us_regions <- read.csv("us census bureau regions and divisions.csv")
+#View(us_regions)
+```
+
+Before anything is done to the data, the data sets were viewed. 
+```{r}
+jeee16t08 %>% glimpse() 
+
+X2020_November_General_Election_Turnout_Rates %>% glimpse()
+
+State_Populations %>% glimpse()
+
+us_regions %>% glimpse()
 
 ```
+
 
 #### Tidying: Reshaping
 
 If your datasets are tidy already, demonstrate that you can reshape data with pivot wider/longer here (e.g., untidy and then retidy). Alternatively, it may be easier to wait until the wrangling section so you can reshape your summary statistics. Note here if you are going to do this.
 
+All data was tidied up. The unessesary columns were removed from the data sets and the columns that we will be using remain. 
+
 ```{R}
 # your tidying code (if applicable; can also wait until wrangling section)
+
+jeee16t08 %>% view()
+cleaned1 <- jeee16t08 %>% select(1,10)
+cleaned1 %>% view()
+
+
+
+X2020_November_General_Election_Turnout_Rates %>% view()
+cleaned2 <- X2020_November_General_Election_Turnout_Rates %>% select(1,6)
+cleaned2 %>% view()
+
+
+us_regions %>% view()
+cleaned3 <- us_regions %>% select(1,4)
+cleaned3 %>% view()
+
+
 ```
 
     
 #### Joining/Merging
 
-```{R}
-# your joining code
+Here I joined the four data sets. 
 
-# your joining code
+```{R}
+combined <- left_join( State_Populations, cleaned1, by = c("State")) %>% 
+  left_join(cleaned2, by = c("State")) %>% left_join(cleaned3, by = c("State"))
+
+
+combined %>% glimpse(51)
+
+
 ```
 
-Discussions of joining here. Feel encouraged to break up into more than once code chunk and discuss each in turn.
+A left join keeps track of all the records. It gives all the rows of the left table and joins them with the right table even if a particular row is not present in the right table. Because there were certain rows I did not want in the other tables, but I wanted all the rows in the "State_populations" data set, I started with that set and left joined to the other data sets. For example , some of the data sets had rows that indicated "totals" which were not present in all the data sets. However, the state populations data set had all of the states. I joined all the data sets with the variable "State" because that was the common ID variable in all data sets. There are 5 columns in this data set and 51 rows or observations. The joined data set is bigger than the original data sets and I think using the left join function was the best way to combine the data. 
+
+
 
 ####  Wrangling
 
-```{R}
-# your wrangling code
-
-# your wrangling code
-
-# your wrangling code
+Here I used the mutate function to change the type of data set from factor to character. 
+The pivot wider function was used to widen the data. 
+```{r}
+dirty <- combined %>% pivot_wider(names_from = Division, values_from = Division)
+dirty %>% glimpse(100)
 ```
 
-Your discussion of wrangling section here. Feel encouraged to break up into more than once code chunk and discuss each in turn.
+
+```{R}
+
+#combined %>% str()
+
+combined %>%
+  mutate(Division = as.character(Division))
+
+```
+
+Then, stringer and mutate function was used to remove the percentage sign from the end of each index in the VEP Turnout Rate. Then, the arrange function organized the VEP turn out rate from least to greatest. 
+```{r}
+
+combinednew <- combined %>% mutate(`VEP Turnout Rate`= str_replace_all(`VEP Turnout Rate`, "%","")) %>% arrange(`VEP Turnout Rate`) %>% mutate(`VEP Turnout Rate`= as.numeric(`VEP Turnout Rate`)) %>% mutate(Division = as.character(Division))
+
+```
+ Now, the select function was used to isolate voter turn out according to state. 
+
+```{r}
+combined2 <- combined %>% mutate(`VEP Turnout Rate`= str_replace_all(`VEP Turnout Rate`, "%","")) %>% arrange(`VEP Turnout Rate`) %>% select(State, `VEP Turnout Rate`, Division ) 
+
+view(combined2)
+
+```
+
+Looking at these columns together allows us to see clearly that Oklahoma had the lowest voter turnout being 55% and Minnesota had the highest VEP Turnout Rate being 79.9%. 
+
+Next, the filter function was applied to see how many of those voter turn outs were considered in the mountain region. Maybe looking at geography might affect the number of voters. 
+```{r}
+combined2 %>% filter( Division == "Mountain" )
+```
+Seeing that the mountain region was filtered and the values are close to both the minimum and maximum, we cannot see much of a relationship between division and voter turnout. 
+
+Next, we run a summary statistic for the entire data set. 
+
+```{r}
+combinednew %>% summarize_if(is.numeric, median) %>% glimpse(51) 
+
+```
+The average population is 4472265 and the average judicial and legal employment is 12.74%. 
+
+Next, we grouped them by division and used the summarize function to compute the median, mean, standard deviation, minimum and maximum for each of the columns in the data set for the numerical variables. 
+
+```{r}
+combinednew %>% group_by(Division) %>% summarize_if(is.numeric, funs(median, 
+    mean, sd, min, max)) %>% as.data.frame() 
+```
 
 
 #### Visualizing
 
+A bar graph was made to depict the voter turnout by state. 
 ```{R}
-# your plot 1
-```
 
-Your discussion of plot 1
+combinednew %>% ggplot(aes(x = State, y= `VEP Turnout Rate`, fill = Division)) + geom_bar(stat = "summary", fun = mean) + geom_errorbar(stat = "summary", width = .5, color = "green") + theme(panel.border = element_rect(linetype = "dashed", fill = NA)) + scale_y_continuous(breaks = seq(50, 80, 2)) + labs (title = "Percentage of Voter turnout by State", x = "State", y = "VEP Turnout Rate") + theme(axis.text.x = element_text(angle = 90, 
+    hjust = 1), panel.background = element_rect(fill = "white", 
+    colour = "grey50")) + scale_y_continuous(breaks = seq(from = 0, to = 100, by = 20), 
+        name = "VEP Turnout Rate")
+
+```
+In this bar graph you can see how percentage of voters for each state. The different colors represent the different divisions. It does not seem as if there is some relationship between different startes and the voter turnouts. The highest voter turnout is Minnesota which is the West North Central. 
+
 
 ```{R}
-# your plot 2
-```
 
-Your discussion of plot 2
+combinednew %>% ggplot(aes(`Judicial and legal Employment`, `VEP Turnout Rate`)) + geom_smooth(method = "lm") + theme(legend.position = "top") + scale_x_continuous(lim = c(5, 20)) + scale_y_continuous(lim = c(50,90)) + labs(title = "Distribution of Judicial and legal Employmet against voter turnout rate", x = "Judicial and legal Employment", y = "VEP Turnout Rate") + geom_point()
+
+```
+In this plot, judicial and legal employment are on the x-axis, while VEP Turnout Rate is on the y-axis. It appears that the data points are concentrated in the middle of this graph. It does not seem like there is a correlation between judicial and legal employment and voter turnout however the line of best fit appears to be sloping slightly downwards suggesting higher turnouts are more associated with less legal employment. Maybe because this type of employment takes up time and calls for a busy schedule, it may decrease time to get to the polls. 
+
 
 ```{R}
-# your plot 3
-```
 
-Your discussion of plot 3
+combinednew %>% ggplot(aes(`2018 Population`, `Judicial and legal Employment`)) + geom_bin2d() + geom_hex() + theme_classic() + labs(title = "Distribution of Judicial and Legal Employment across Population number", x = "2018 Population", y = "Judicial and Legal Employment") + theme(plot.title = element_text(size = rel(1))) + scale_y_continuous(breaks = seq(10,30,1) + scale_fill_gradient(low = "Blue", high = "Black"))
+
+
+
+```
+This plot shows a distribution of judicial and legal employment across the population. It appears that the more smaller populations have more judicial and legal employmet in general. 
+
 
 #### Concluding Remarks
 
-If any!
+This data analysis project was merely to explore and utilize the important functions. While I wanted to see if there were correlations with voter turnout, population, division,and legal occupation there was not enough information to see any strong associations.  
 
 
 
